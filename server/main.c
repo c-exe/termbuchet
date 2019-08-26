@@ -21,9 +21,11 @@ int fdmax;
 
 int main(int argc, char *argv[])
 {
-  
+  int i, nbytes;
   int listener;
   char remoteip[INET6_ADDRSTRLEN];
+  char buffer[BUFFERSIZE] = "";
+  displaynode *currentdn = NULL;
   
   if ((listener = setupconnection(PORT_STR)) < 0)
   {
@@ -60,6 +62,55 @@ Do_Select_Restart:
       break;
     }
     
+    //Find out what was set
+    for (i = 0; i<=fdmax; i++)
+    {
+      if (FD_ISSET(i, &read_fds))
+      {
+        //This was set
+        if (i == STDINFD)
+        {
+          //TUI Input
+          //TODO: Do something in the TUI
+        }
+        else if (i == listener)
+        {
+          //New Connection
+          currentdn = doaccept(listener);
+          if (!currentdn) perror("Accept Error");
+          else
+          {
+            FD_SET(currentdn->socketfd, &master);
+            if (currentdn->socketfd > fdmax) fdmax = currentdn->socketfd;
+            //TODO: Ask for info here...
+          }
+        }
+        else
+        {
+          //New Data
+          if ((nbytes = recv(i, buffer, sizeof(char)*BUFFERSIZE, 0)) <= 0)
+          {
+            //Error or closed connection
+            if (nbytes < 0)
+            {
+              perror("Receive Error");
+            }
+            //Close the connection and anything related:
+            if (!doclose(i))
+            {
+              perror("Close Error");
+            }
+            FD_CLR(i, &master);
+          }
+          else
+          {
+            //We have data!
+            
+            //TODO: Do something with the data...
+          }
+        }
+      }
+    }
   }
   
   closeconnections(listener);

@@ -168,3 +168,45 @@ int dolisten(int listener)
   
   return 1;
 }
+
+displaynode *doaccept(int listener)
+{
+  displaynode *adn = NULL;
+  int newfd;
+  struct sockaddr_storage remoteaddr;
+  socklen_t addrlen;
+  
+  addrlen = sizeof(remoteaddr);
+  newfd = accept(listener, (struct sockaddr *) &remoteaddr, &addrlen);
+  if (newfd == -1)
+  {
+    return NULL;
+  }
+  else
+  {
+    adn = adddisplay(newfd);
+    if (!adn)
+    {
+      close(newfd);
+      return NULL;
+    }
+    adn->ipaddress = (char *) malloc(sizeof(char)*(1+INET6_ADDRSTRLEN));
+    if (adn->ipaddress)
+    {
+      //If that worked, fill it in.
+      inet_ntop(remoteaddr.ss_family, get_in_addr((struct sockaddr *) &remoteaddr), adn->ipaddress, INET6_ADDRSTRLEN);
+    }
+  }
+  return adn;
+}
+
+int doclose(int socketfd)
+{
+  if (close(socketfd))
+  {
+    //perror("Close Error");
+    return 0;
+  }
+  if (!freedisplay(socketfd)) return 0;
+  return 1;
+}

@@ -35,6 +35,8 @@ void *get_in_addr(struct sockaddr *sa);
 int setupconnection(char *port_str); //Returns listener fd
 int closeconnections(int listener);
 int dolisten(int listener);
+displaynode *doaccept(int listener);
+int doclose(int socketfd);
 
 
 #endif
