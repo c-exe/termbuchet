@@ -8,11 +8,12 @@
 
 typedef enum colourtype_enum
 {
-  monochrome, //1 bit = 2 colour
-  eight,      //3 bit = 8 colour
-  sixteen,    //4 bit = 16 colour
-  byte,       //8 bit = 256 colour
-  truecolour  //24 bit
+  unknowncolour = 0, //None
+  monochrome,    //1 bit = 2 colour
+  eight,         //3 bit = 8 colour
+  sixteen,       //4 bit = 16 colour
+  byte,          //8 bit = 256 colour
+  truecolour     //24 bit
 } colourtype;
 
 typedef struct displaynode_struct
@@ -37,6 +38,8 @@ int closeconnections(int listener);
 int dolisten(int listener);
 displaynode *doaccept(int listener);
 int doclose(int socketfd);
+int fullsend(int socketfd, char *senddata, int datalen, int flags);
+int sendslidetext(int socketfd, char *slidedata);
 
 
 #endif

@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <signal.h>
 
+#include "../sharedfuncs.h"
 #include "server.h"
 
 int running = 0;
@@ -208,5 +209,47 @@ int doclose(int socketfd)
     return 0;
   }
   if (!freedisplay(socketfd)) return 0;
+  return 1;
+}
+
+int fullsend(int socketfd, char *senddata, int datalen, int flags)
+{
+  int n, total = 0;
+  int remaining = datalen;
+  
+  while (total < datalen)
+  {
+    n = send(socketfd, senddata+(sizeof(char)*total), remaining, flags);
+    if (n == -1) break;
+    total += n;
+    remaining -= n;
+  }
+  
+  if (n == -1) return n;
+  return total;
+}
+
+int sendslidetext(int socketfd, char *slidedata)
+{
+  int sdlen = strlen(slidedata);
+  char sdlenstr[30];
+  char buffer[BUFFERSIZE];
+  sprintf(sdlenstr, "%d", sdlen);
+  strcpy(buffer, MSG_SLIDEHEADER_START);
+  strcat(buffer, sdlenstr);
+  strcat(buffer, MSG_SLIDEHEADER_END);
+  
+  if (fullsend(socketfd, buffer, strlen(buffer)*sizeof(char), 0) == -1)
+  {
+    return 0;
+  }
+  if (fullsend(socketfd, slidedata, sdlen*sizeof(char), 0) == -1)
+  {
+    return 0;
+  }
+  if (send(socketfd, MSG_SLIDEFOOTER MSG_SEPARATOR, strlen(MSG_SLIDEFOOTER MSG_SEPARATOR)*sizeof(char), 0) == -1)
+  {
+    return 0;
+  }
   return 1;
 }

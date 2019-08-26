@@ -82,7 +82,12 @@ Do_Select_Restart:
           {
             FD_SET(currentdn->socketfd, &master);
             if (currentdn->socketfd > fdmax) fdmax = currentdn->socketfd;
-            //TODO: Ask for info here...
+            //Ask for info here...
+            if (fullsend(currentdn->socketfd, MSG_REQUEST MSG_COLOURTYPE MSG_SEPARATOR, sizeof(char)*strlen(MSG_REQUEST MSG_COLOURTYPE MSG_SEPARATOR), 0) == -1)
+            {
+              perror("Send Error for requesting colourtype");
+            }
+            //Be sure to receive this (sending ROK) and then ask for Width and Height...
           }
         }
         else
