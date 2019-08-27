@@ -72,7 +72,7 @@ int isrunning()
 void handle_sigint(int sig)
 {
   running = 0;
-  printf("Termination initiated.\r\n");
+  printf("Terminating.\n");
 }
 
 void *get_in_addr(struct sockaddr *sa)

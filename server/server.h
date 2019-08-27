@@ -1,6 +1,12 @@
 #ifndef SERVER_INCLUDED
 #define SERVER_INCLUDED 1
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+
 #define PORT_STR "9034"
 #define PORT_N 9034
 
