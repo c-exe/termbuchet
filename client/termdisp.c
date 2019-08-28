@@ -3,6 +3,8 @@
 #include <string.h>
 #include <ctypes.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "../sharedfuncs.h"
 #include "termstyles.h"
@@ -39,6 +41,57 @@ void setforcedcolourtypespec(int colourtype)
   forcedcolourtypespec = colourtype;
 }
 
+int runexternal(char *outputstr, int outputstr_size, char *program, char *arg1)
+{
+  //A quick bodge for running external programs with one argument
+  int outpipe[2];
+  pid_t apid
+  char buffer[MAXBUFFERSIZE];
+  int rdn = MAXBUFFERSIZE-1;
+  int n, xn = outputstr_size, xon = 0;
+  if (rdn>outputstr_size-1) rdn = outputstrsize-1;
+  pipe(outpipe);
+  apid = fork();
+  switch (apid)
+  {
+    case -1:
+      return -1;
+    break;
+    
+    case 0:
+      //child
+      close(outpipe[0]);
+      dup2(outpipe[1],SCREENFD);
+      execlp(program, program, arg1);
+      //If we got here, it failed
+      write(SCREENFD,"\004",1); //Send an EOF
+      exit(1);
+      _exit(1);
+    break;
+    
+    default:
+      //parent
+      close(outpipe[1]);
+      waitpid(apid, NULL, 0); //I should really have a timer to kill it if it goes on too long
+      do
+      {
+        n = read(outpipe[0], buffer, rdn);
+        if (n>0 && buffer[0]==4) break;
+        buffer[rdn] = 0;
+        if (n>0) memcpy(outputstr + (sizeof(char)*xon), buffer, rdn);
+        xn -= n;
+        xon += n;
+        if (xn <= 0) break;
+        rdn = MAXBUFFERSIZE-1;
+        if (rdn > xn) rdn = xn;
+      } while(n>0);
+      close(outputpipe[0]);
+    break;
+    if (xon>0 && outputstr[0]==4) return -2;
+  }
+  return 1;
+}
+
 int updatecolourtypespec()
 {
   //Returns: 1=Mono, 3=8 colours, 4=16 colours, 8=256 colours, 24=truecolour, 0=unknown
@@ -55,21 +108,60 @@ int updatecolourtypespec()
     colourtypespec = 1;
     return 1;
   }
-  //Otherwise look up the TERM in TERMINFO or TERMCAP (tricky and it turns out it's not definitive anyway!)...
+  //Otherwise, we could look up the TERM in TERMINFO or TERMCAP (tricky, bloated and it turns out it's not definitive anyway!), or...
   const char *tt = getenv("TERM");
-  if (strstr("-mono", tt) >=0 || strstr("-MONO", tt) >= 0)
+  char theoutput[512]="";
+  int numcols = 0;
+  int rv = runexternal(theoutput, 512, "tput","colors"); //risky
+  if (rv == 1) //It worked
+  {
+    sscanf(theoutput,"%d", &numcols);
+    if (numcols == 8) colourtypespec = 3;
+    else if (numcols == 16) colourtypespec = 4;
+    else if (numcols == 256) colourtypespec = 8;
+    else if (numcols > 256) colourtypespec = 24; //probably
+    else if (numcols < 0) colourtypespec = 1; //usually
+    if (colourtypespec) return colourtypespec;
+  }
+  rv = runexternal(theoutput, 512, "infocmp",tt); //riskier
+  if (rv == 1) //It worked
+  {
+    char *colout = strstr("colors",theoutput);
+    if (colout)
+    {
+      if (colout[6] == '@') colourtypespec = 1; //usually
+      else if (colout[6] == '#')
+      {
+        char *comma = strstr(",",colout);
+        if (comma)
+        {
+          comma[0] = 0;
+          sscanf(theoutput,"colors#%d", &numcols);
+          if (numcols == 8) colourtypespec = 3;
+          else if (numcols == 16) colourtypespec = 4;
+          else if (numcols == 256) colourtypespec = 8;
+          else if (numcols > 256) colourtypespec = 24; //probably
+        }
+      }
+    }
+    if (colourtypespec) return colourtypespec;
+  }
+  
+  //Use this if we still don't have an answer...
+  if (strstr("-mono", tt) != NULL || strstr("-MONO", tt) != NULL)
   {
     //Convention says this is mono.
     colourtypespec = 1;
     return 1;
   }
-  if (strstr("-256", tt) >=0)
+  if (strstr("-256", tt) != NULL)
   {
     //Convention says this is 256 colours.
     colourtypespec = 8;
     return 8;
   }
-  
+  //I dunno!
+  return 0;
 }
 
 int writestylefromtag(char *atag)
