@@ -9,6 +9,7 @@
 #include "termdisp.h"
 
 stylesblock normalstyle, currentstyle;
+int forcedcolourtypespec = 0;
 int colourtypespec = 0;
 
 void revertcurrenttonormal()
@@ -33,14 +34,42 @@ void revertcurrenttonormal()
   //Then deal with colours
 }
 
+void setforcedcolourtypespec(int colourtype)
+{
+  forcedcolourtypespec = colourtype;
+}
+
 int updatecolourtypespec()
 {
   //Returns: 1=Mono, 3=8 colours, 4=16 colours, 8=256 colours, 24=truecolour, 0=unknown
   
   //Check if colour type has been forced to a value and return if so
+  if (forcedcolourtypespec)
+  {
+    colourtypespec = forcedcolourtypespec;
+    return colourtypespec;
+  }
   //Otherwise check if it's a tty and if not say mono
-  if (!isatty(SCREENFD)) return 1;
-  //Otherwise look up the TERM in TERMCAP (tricky)...
+  if (!isatty(SCREENFD))
+  {
+    colourtypespec = 1;
+    return 1;
+  }
+  //Otherwise look up the TERM in TERMINFO or TERMCAP (tricky and it turns out it's not definitive anyway!)...
+  const char *tt = getenv("TERM");
+  if (strstr("-mono", tt) >=0 || strstr("-MONO", tt) >= 0)
+  {
+    //Convention says this is mono.
+    colourtypespec = 1;
+    return 1;
+  }
+  if (strstr("-256", tt) >=0)
+  {
+    //Convention says this is 256 colours.
+    colourtypespec = 8;
+    return 8;
+  }
+  
 }
 
 int writestylefromtag(char *atag)
